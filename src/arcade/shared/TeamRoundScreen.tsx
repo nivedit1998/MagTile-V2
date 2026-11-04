@@ -2,14 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { type Card, type Category, buildPool } from '../content/banks'
 import { GameBar, Notice } from './GameFrame'
 import {
-  MAX_TEAM_NAME, MIN_POOL, SECONDS_OPTIONS, TURNS_OPTIONS, cardToken, markCorrect, markPass, newRounds, nextTurn,
-  parseRoundSettings, parseRoundState, pauseTurn, ranking, reconcile, resumeTurn, startTurn, teamOf, totalTurns, validateTeamNames,
+  MIN_POOL, SECONDS_OPTIONS, TURNS_OPTIONS, cardToken, markCorrect, markPass, newRounds, nextTurn,
+  parseRoundSettings, parseRoundState, pauseTurn, ranking, reconcile, resumeTurn, startTurn, teamOf, totalTurns,
   type Result, type RoundSettings, type RoundState,
 } from './rounds'
 import { displaySeconds, isExpired, remaining } from './timer'
 import { useGameSave } from './useGameSave'
 import { useNow } from './useNow'
-import { readPref, writePref } from '../storage/saves'
 
 export interface TeamGameConfig {
   gameId: string
@@ -23,7 +22,6 @@ export interface TeamGameConfig {
 }
 
 const browserRandom = () => crypto.getRandomValues(new Uint32Array(1))[0] / 4294967296
-const TEAMS_PREF = 'magtile.arcade.teams'
 
 interface Props {
   config: TeamGameConfig
@@ -44,17 +42,14 @@ export default function TeamRoundScreen({ config, onExit }: Props) {
   const { loading, saved, warning, save, clear } = useGameSave<RoundSettings, RoundState>(config.gameId, config.version, parse)
 
   // Setup form
-  const [teamNames, setTeamNames] = useState<string[]>(() => {
-    const p = readPref<unknown>(TEAMS_PREF)
-    return Array.isArray(p) && p.length >= 2 && p.length <= 4 && p.every((x) => typeof x === 'string') ? (p as string[]) : ['Team 1', 'Team 2']
-  })
+  const [teamTotal, setTeamTotal] = useState<number>(2)
+  const teamNames = useMemo(() => Array.from({ length: teamTotal }, (_, i) => `Team ${i + 1}`), [teamTotal])
   const [turns, setTurns] = useState<number>(2)
   const [seconds, setSeconds] = useState<number>(60)
   const [cats, setCats] = useState<string[]>(() => {
     const d = config.defaultCategories.filter((id) => knownIds.includes(id))
     return d.length ? d : knownIds.slice(0, 2)
   })
-  const [errors, setErrors] = useState<(string | null)[]>([])
   const [setupNote, setSetupNote] = useState<string | null>(null)
   const [confirmNew, setConfirmNew] = useState(false)
 
@@ -143,24 +138,19 @@ export default function TeamRoundScreen({ config, onExit }: Props) {
   if (!state || !settings) {
     const poolSize = buildPool(config.categories, cats).length
     const startNew = () => {
-      const check = validateTeamNames(teamNames)
-      setErrors(check.errors)
       setSetupNote(null)
-      if (!check.ok) return
       if (cats.length === 0) return setSetupNote('Pick at least one category.')
       if (poolSize < MIN_POOL) return setSetupNote(`Not enough cards (${poolSize}). Pick more categories.`)
       if (saved.kind === 'ok' && !confirmNew) {
         setConfirmNew(true)
         return
       }
-      writePref(TEAMS_PREF, check.names)
-      setTeamNames(check.names)
-      begin({ teams: check.names, turnsPerTeam: turns, turnSeconds: seconds, categoryIds: cats }, true)
+      begin({ teams: teamNames, turnsPerTeam: turns, turnSeconds: seconds, categoryIds: cats }, true)
     }
     return (
       <div className="arc-game">
         {header('‹ ARCADE', onExit)}
-        <form className="arc-body" onSubmit={(e) => { e.preventDefault(); startNew() }} noValidate>
+        <div className="arc-body">
           {saved.kind === 'ok' ? (
             <div className="arc-card">
               <p className="arc-lead">Saved game</p>
@@ -188,6 +178,7 @@ export default function TeamRoundScreen({ config, onExit }: Props) {
           ) : null}
           {saved.kind === 'bad' ? <Notice>{saved.reason} Starting a new game replaces it.</Notice> : null}
 
+          <p className="arc-lead">{config.title}</p>
           <p className="arc-text arc-rules">{config.rules}</p>
 
           <div className="arc-seg" role="group" aria-label="Number of teams">
@@ -195,28 +186,16 @@ export default function TeamRoundScreen({ config, onExit }: Props) {
               <button
                 key={n}
                 type="button"
-                aria-pressed={teamNames.length === n}
-                className={teamNames.length === n ? 'selected' : ''}
-                onClick={() => setTeamNames((cur) => Array.from({ length: n }, (_, i) => cur[i] ?? `Team ${i + 1}`))}
+                aria-pressed={teamTotal === n}
+                className={teamTotal === n ? 'selected' : ''}
+                onClick={() => setTeamTotal(n)}
               >
                 {n} teams
               </button>
             ))}
           </div>
-          {teamNames.map((name, i) => (
-            <label className="arc-field" key={i}>
-              <span>Team {i + 1}</span>
-              <input
-                value={name}
-                maxLength={MAX_TEAM_NAME}
-                autoComplete="off"
-                onChange={(e) => setTeamNames((cur) => cur.map((x, k) => (k === i ? e.target.value : x)))}
-                aria-invalid={errors[i] != null}
-              />
-              {errors[i] ? <em>{errors[i]}</em> : null}
-            </label>
-          ))}
 
+          <div className="arc-row2">
           <div className="arc-field">
             <span>Turns per team</span>
             <div className="arc-seg" role="group" aria-label="Turns per team">
@@ -232,6 +211,7 @@ export default function TeamRoundScreen({ config, onExit }: Props) {
                 <button key={n} type="button" aria-pressed={seconds === n} className={seconds === n ? 'selected' : ''} onClick={() => setSeconds(n)}>{n}s</button>
               ))}
             </div>
+          </div>
           </div>
 
           <div className="arc-field">
@@ -259,8 +239,9 @@ export default function TeamRoundScreen({ config, onExit }: Props) {
 
           {setupNote ? <Notice>{setupNote}</Notice> : null}
           {confirmNew ? <Notice>This replaces your saved game.</Notice> : null}
-          <button type="submit" className="arc-btn arc-primary">{confirmNew ? 'Replace and start' : 'Start game'}</button>
-        </form>
+          <div className="arc-spacer" />
+          <button type="button" className="arc-btn arc-primary" onClick={startNew}>{confirmNew ? 'Replace and start' : 'Start game'}</button>
+        </div>
       </div>
     )
   }

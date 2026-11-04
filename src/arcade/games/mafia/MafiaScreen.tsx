@@ -1,7 +1,6 @@
 import { useRef, useState } from 'react'
 import type { Random } from '../../shared/deck'
 import { GameBar, Notice } from '../../shared/GameFrame'
-import { MAX_NAME_LENGTH } from '../../shared/names'
 import { BallotView, PrivateCover, TallyList } from '../../shared/PrivateCover'
 import { useGameSave } from '../../shared/useGameSave'
 import { usePrivacy } from '../../shared/usePrivacy'
@@ -37,7 +36,6 @@ export default function MafiaScreen({ onExit }: Props) {
 
   const [names, setNames] = useState<string[]>(['Player 1', 'Player 2', 'Player 3', 'Player 4', 'Player 5'])
   const [mafia, setMafia] = useState(1)
-  const [errors, setErrors] = useState<(string | null)[]>([])
   const [setupNote, setSetupNote] = useState<string | null>(null)
   const [confirmNew, setConfirmNew] = useState(false)
 
@@ -95,7 +93,6 @@ export default function MafiaScreen({ onExit }: Props) {
     const effective = Math.min(mafia, max)
     const startNew = () => {
       const check = validateSetup(names, effective)
-      setErrors(check.errors)
       setSetupNote(check.mafiaError)
       if (!check.ok) return
       if (saved.kind === 'ok' && !confirmNew) {
@@ -107,7 +104,7 @@ export default function MafiaScreen({ onExit }: Props) {
     return (
       <div className="arc-game">
         <GameBar title="Mafia" backLabel="‹ ARCADE" onBack={onExit} />
-        <form className="arc-body" onSubmit={(e) => { e.preventDefault(); startNew() }} noValidate>
+        <div className="arc-body">
           {saved.kind === 'ok' ? (
             <div className="arc-card">
               <p className="arc-lead">Saved game</p>
@@ -117,15 +114,9 @@ export default function MafiaScreen({ onExit }: Props) {
           ) : null}
           {saved.kind === 'bad' ? <Notice>{saved.reason} Starting a new game replaces it.</Notice> : null}
 
-          <p className="arc-text arc-rules">
-            A separate <strong>moderator</strong> (not a player) holds the device and sees ALL secrets: roles, the Mafia’s victim, the
-            Doctor’s choice and the Seer’s result. Players: one Seer, one Doctor, a few Mafia, the rest Villagers.
-            Villagers win when no Mafia remain; the Mafia win when they are as many as everyone else.
-          </p>
-          <p className="arc-text arc-rules">
-            Privacy: roles are shown one player at a time behind a cover, and the cover returns if the page is hidden or reopened.
-            The game is saved on this device in plain form so it can resume; anyone with browser tools could read it.
-          </p>
+          <p className="arc-lead">Mafia</p>
+          <p className="arc-text arc-rules">A separate <strong>moderator</strong> (not a player) holds the device and sees all secrets. One Seer, one Doctor, some Mafia, the rest Villagers. Roles are shown one at a time behind a cover.</p>
+          <div className="arc-field"><span>Players</span></div>
 
           <div className="arc-seg arc-wrap" role="group" aria-label="Number of players">
             {Array.from({ length: MAX_PLAYERS - MIN_PLAYERS + 1 }, (_, i) => MIN_PLAYERS + i).map((n) => (
@@ -143,13 +134,6 @@ export default function MafiaScreen({ onExit }: Props) {
               </button>
             ))}
           </div>
-          {names.map((name, i) => (
-            <label className="arc-field" key={i}>
-              <span>Player {i + 1}</span>
-              <input value={name} maxLength={MAX_NAME_LENGTH} autoComplete="off" onChange={(e) => setNames((cur) => cur.map((x, k) => (k === i ? e.target.value : x)))} aria-invalid={errors[i] != null} />
-              {errors[i] ? <em>{errors[i]}</em> : null}
-            </label>
-          ))}
           <div className="arc-field">
             <span>Mafia players (max {max})</span>
             <div className="arc-seg" role="group" aria-label="Mafia players">
@@ -161,8 +145,9 @@ export default function MafiaScreen({ onExit }: Props) {
 
           {setupNote ? <Notice>{setupNote}</Notice> : null}
           {confirmNew ? <Notice>This replaces your saved game.</Notice> : null}
-          <button type="submit" className="arc-btn arc-primary">{confirmNew ? 'Replace and start' : 'Start game'}</button>
-        </form>
+          <div className="arc-spacer" />
+          <button type="button" className="arc-btn arc-primary" onClick={startNew}>{confirmNew ? 'Replace and start' : 'Start game'}</button>
+        </div>
       </div>
     )
   }

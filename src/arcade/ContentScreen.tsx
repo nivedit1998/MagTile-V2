@@ -62,10 +62,8 @@ export default function ContentScreen({ onBack }: Props) {
     <div className="arc-game">
       <GameBar title="Content" backLabel="‹ ARCADE" onBack={onBack} />
       <div className="arc-body">
-        <p className="arc-text arc-rules">
-          Games never use the network while you play. Questions, words and cards come from this device: the built-in starter set,
-          or newer packs downloaded at most once a day from this menu.
-        </p>
+        <p className="arc-lead">Content &amp; credits</p>
+        <p className="arc-text arc-rules">Games never use the network while you play. Packs refresh at most once a day from this menu.</p>
 
         <ul className="card-list" aria-label="Installed content">
           {PACKS.map((p) => {
@@ -74,17 +72,14 @@ export default function ContentScreen({ onBack }: Props) {
               <li key={p.key}>
                 <strong>{p.label}</strong>
                 <br />
-                {p.count(content)} items · {p.cats(content)} categories ·{' '}
-                {s.origin === 'starter' ? 'Starter set (built in)' : `Downloaded v${s.version}, ${when(s.installedAt)}`}
+                {p.count(content)} items · {p.cats(content)} categories · {s.origin === 'starter' ? 'starter set' : `v${s.version}`}
               </li>
             )
           })}
         </ul>
 
         <p className="arc-text">
-          Last successful check: <strong>{when(content.meta.lastSuccess)}</strong>
-          <br />
-          {downloaded === 0 ? 'Using the built-in starter set.' : 'Using saved packs.'}
+          Last check: <strong>{when(content.meta.lastSuccess)}</strong>. {downloaded === 0 ? 'Using the built-in starter set.' : 'Using saved packs.'}
           {content.meta.lastResult === 'failed' ? ` Last attempt failed${content.meta.lastDetail ? `: ${content.meta.lastDetail.replace(/\.$/, '')}` : ''}.` : ''}
           {content.meta.deferred.length ? ` Waiting to install: ${content.meta.deferred.join(', ')}.` : ''}
         </p>
@@ -100,12 +95,7 @@ export default function ContentScreen({ onBack }: Props) {
         <p className="arc-kicker">CREDITS</p>
         <ul className="card-list" aria-label="Credits">
           {[...credits.values()].map((c) => (
-            <li key={`${c.source}|${c.licence}`}>
-              <strong>{c.source}</strong> · {c.licence}
-              <br />
-              {c.attribution}
-              {c.url ? <><br />{c.url}</> : null}
-            </li>
+            <li key={`${c.source}|${c.licence}`}><strong>{c.source}</strong> · {c.licence}</li>
           ))}
         </ul>
       </div>

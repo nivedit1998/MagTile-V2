@@ -38,9 +38,7 @@ export default function ArcadeScreen() {
   const [openGame, setOpenGame] = useState<GameId | null>(null)
   const [showContent, setShowContent] = useState(false)
   const [savedIds, setSavedIds] = useState<ReadonlySet<string>>(new Set())
-  const listRef = useRef<HTMLDivElement>(null)
   const gameRef = useRef<HTMLDivElement>(null)
-  const scrollTop = useRef(0)
   const lastOpened = useRef<string | null>(null)
   const inGame = openGame !== null || showContent
   const offline = useOfflineStatus()
@@ -63,42 +61,31 @@ export default function ArcadeScreen() {
     void runSync('auto')
   }, [inGame])
 
-  // Returning from a game: restore list position and focus the tile that was opened.
+  // Returning from a game: focus the tile that was opened.
   useLayoutEffect(() => {
-    if (inGame) return
-    const list = listRef.current
-    if (!list) return
-    list.scrollTop = scrollTop.current
+    if (inGame || !gameRef.current) return
     if (lastOpened.current) {
-      list.querySelector<HTMLElement>(`[data-game="${lastOpened.current}"]`)?.focus({ preventScroll: true })
+      gameRef.current.querySelector<HTMLElement>(`[data-game="${lastOpened.current}"]`)?.focus({ preventScroll: true })
     }
   }, [inGame])
 
-  // Hardware page buttons: discrete page jump in the list, discrete focus step inside a game.
+  // Hardware page buttons: a discrete focus step through the visible controls. Nothing on screen scrolls.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'PageDown' && event.key !== 'PageUp') return
       event.preventDefault()
-      const dir = event.key === 'PageDown' ? 1 : -1
-      if (!inGame) {
-        const list = listRef.current
-        if (list) list.scrollTop += dir * list.clientHeight * 0.75
-      } else if (gameRef.current) {
-        stepFocus(gameRef.current, dir)
-      }
+      if (gameRef.current) stepFocus(gameRef.current, event.key === 'PageDown' ? 1 : -1)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [inGame])
+  }, [])
 
   const open = (id: GameId) => {
-    scrollTop.current = listRef.current?.scrollTop ?? scrollTop.current
     lastOpened.current = id
     setOpenGame(id)
   }
   const close = () => setOpenGame(null)
   const openContent = () => {
-    scrollTop.current = listRef.current?.scrollTop ?? scrollTop.current
     lastOpened.current = 'content'
     setShowContent(true)
   }
@@ -130,11 +117,7 @@ export default function ArcadeScreen() {
   }
 
   return (
-    <section className="arcade-screen" aria-label="Arcade games">
-      <header className="arcade-heading">
-        <h2>Arcade</h2>
-        <span>{ARCADE_GAMES.length} GAMES</span>
-      </header>
+    <section className="arcade-screen" aria-label="Arcade games" ref={gameRef}>
       {offline.stale ? (
         <div className="arcade-update" role="status">
           <span>Updated in another tab. Reload to finish.</span>
@@ -146,36 +129,23 @@ export default function ArcadeScreen() {
           <button type="button" onClick={applyUpdate}>Update now</button>
         </div>
       ) : null}
-      <div className="arcade-game-list" ref={listRef} tabIndex={0} aria-label="Game list. Use Page Up and Page Down to move by page.">
+      <div className="arcade-game-list" role="group" aria-label="Games">
         {ARCADE_GAMES.map((game, index) => (
-          <button
-            className="arcade-game-tile"
-            data-game={game.id}
-            key={game.id}
-            onClick={() => open(game.id)}
-            type="button"
-          >
-            <span className="arcade-game-number">{String(index + 1).padStart(2, '0')}</span>
-            <span className="arcade-game-copy">
-              <span className="arcade-game-name">{game.name}</span>
-              <span className="arcade-game-description">{game.description}</span>
-            </span>
-            <span className="arcade-game-type">
-              {game.type}
-              {savedIds.has(game.id) ? <span className="arcade-game-saved">● SAVED</span> : null}
-            </span>
+          <button className="arcade-game-tile" data-game={game.id} key={game.id} onClick={() => open(game.id)} type="button">
+            <span className="arcade-game-number">{String(index + 1).padStart(2, '0')}{savedIds.has(game.id) ? ' · ● SAVED' : ''}</span>
+            <span className="arcade-game-name">{game.name}</span>
+            <span className="arcade-game-description">{game.description}</span>
+            <span className="arcade-game-type">{game.type}</span>
           </button>
         ))}
-        <button className="arcade-game-tile" data-game="content" onClick={openContent} type="button">
-          <span className="arcade-game-number">··</span>
-          <span className="arcade-game-copy">
-            <span className="arcade-game-name">Content &amp; credits</span>
-            <span className="arcade-game-description">Questions, words and cards · works offline</span>
+        <button className="arcade-game-tile wide" data-game="content" onClick={openContent} type="button">
+          <span className="arcade-game-name">Content &amp; credits</span>
+          <span className="arcade-game-description">
+            {content && [content.trivia, content.words, content.charades].some((s) => s.origin === 'downloaded') ? 'Updated packs' : 'Starter set'}
+            {offline.ready ? ' · offline ready' : ''}
           </span>
-          <span className="arcade-game-type">{content && [content.trivia, content.words, content.charades].some((s) => s.origin === 'downloaded') ? 'UPDATED PACKS' : 'STARTER SET'}</span>
         </button>
       </div>
-      <div className="arcade-page-hint"><span>PAGE BUTTONS ↑ ↓</span><span>{offline.ready ? 'OFFLINE READY' : ''}</span></div>
     </section>
   )
 }

@@ -6,7 +6,7 @@ import { GameBar, Notice } from '../../shared/GameFrame'
 import { ranking } from '../../shared/rounds'
 import { useGameSave } from '../../shared/useGameSave'
 import {
-  MAX_MEMBERS, MAX_NAME, MAX_PLAYERS, MAX_TEAMS, POINTS_OPTIONS, ROUNDS_OPTIONS, answererOf, award, choose, declineTieBreak,
+  MAX_PLAYERS, MAX_TEAMS, POINTS_OPTIONS, ROUNDS_OPTIONS, answererOf, award, choose, declineTieBreak,
   newMatch, nextTurn, parseSettings, parseState, questionsNeeded, remainingQuestions, revealAnswer, showQuestion, startTieBreak, totalTurns,
   validateEntrants, winners,
   type Format, type Mode, type Result, type Settings, type State,
@@ -68,7 +68,6 @@ function TriviaGame({ onExit, categories, version }: Props & { categories: reado
     const d = ['general', 'science'].filter((id) => knownIds.includes(id))
     return d.length ? d : knownIds.slice(0, 2)
   })
-  const [errors, setErrors] = useState<(string | null)[]>([])
   const [setupNote, setSetupNote] = useState<string | null>(null)
   const [confirmNew, setConfirmNew] = useState(false)
 
@@ -135,11 +134,9 @@ function TriviaGame({ onExit, categories, version }: Props & { categories: reado
     const switchMode = (m: Mode) => {
       setMode(m)
       setRows(defaultRows(m, 2))
-      setErrors([])
     }
     const startNew = () => {
       const check = validateEntrants(mode, rows)
-      setErrors(check.errors)
       setSetupNote(null)
       if (!check.ok) return
       if (cats.length === 0) return setSetupNote('Pick at least one category.')
@@ -153,7 +150,7 @@ function TriviaGame({ onExit, categories, version }: Props & { categories: reado
     return (
       <div className="arc-game">
         <GameBar title="Trivia Battle" backLabel="‹ ARCADE" onBack={onExit} />
-        <form className="arc-body" onSubmit={(e) => { e.preventDefault(); startNew() }} noValidate>
+        <div className="arc-body">
           {saved.kind === 'ok' ? (
             <div className="arc-card">
               <p className="arc-lead">Saved match</p>
@@ -176,10 +173,7 @@ function TriviaGame({ onExit, categories, version }: Props & { categories: reado
           ) : null}
           {saved.kind === 'bad' ? <Notice>{saved.reason} Starting a new match replaces it.</Notice> : null}
 
-          <p className="arc-text arc-rules">
-            Everyone gets the same number of questions, in turn. Share one device: no speed scoring. If the top spots tie you can
-            play a tie-break question each or share the win.
-          </p>
+          <p className="arc-lead">Trivia Battle</p>
 
           <div className="arc-seg" role="group" aria-label="Who is playing">
             <button type="button" aria-pressed={mode === 'players'} className={mode === 'players' ? 'selected' : ''} onClick={() => switchMode('players')}>Individuals</button>
@@ -199,32 +193,6 @@ function TriviaGame({ onExit, categories, version }: Props & { categories: reado
             ))}
           </div>
 
-          {rows.map((row, i) => (
-            <div className="arc-field" key={i}>
-              <label>
-                <span>{mode === 'players' ? `Player ${i + 1}` : `Team ${i + 1} name`}</span>
-                <input
-                  value={row.name}
-                  maxLength={MAX_NAME}
-                  autoComplete="off"
-                  onChange={(e) => setRows((cur) => cur.map((r, k) => (k === i ? { ...r, name: e.target.value } : r)))}
-                  aria-invalid={errors[i] != null}
-                />
-              </label>
-              {mode === 'teams' ? (
-                <label>
-                  <span>Members (comma separated, up to {MAX_MEMBERS})</span>
-                  <input
-                    value={row.members}
-                    autoComplete="off"
-                    onChange={(e) => setRows((cur) => cur.map((r, k) => (k === i ? { ...r, members: e.target.value } : r)))}
-                    aria-invalid={errors[i] != null}
-                  />
-                </label>
-              ) : null}
-              {errors[i] ? <em>{errors[i]}</em> : null}
-            </div>
-          ))}
 
           <div className="arc-field">
             <span>Question style</span>
@@ -232,8 +200,8 @@ function TriviaGame({ onExit, categories, version }: Props & { categories: reado
               <button type="button" aria-pressed={format === 'choice'} className={format === 'choice' ? 'selected' : ''} onClick={() => setFormat('choice')}>Multiple choice</button>
               <button type="button" aria-pressed={format === 'host'} className={format === 'host' ? 'selected' : ''} onClick={() => setFormat('host')}>Quizmaster</button>
             </div>
-            <small className="tv-hint">{format === 'choice' ? 'The answerer picks from four options.' : 'A quizmaster reads each question, reveals the answer, and awards the point.'}</small>
           </div>
+          <div className="arc-row2">
           <div className="arc-field">
             <span>Questions each</span>
             <div className="arc-seg" role="group" aria-label="Questions each">
@@ -243,12 +211,13 @@ function TriviaGame({ onExit, categories, version }: Props & { categories: reado
             </div>
           </div>
           <div className="arc-field">
-            <span>Points per correct answer</span>
+            <span>Points each</span>
             <div className="arc-seg" role="group" aria-label="Points per correct answer">
               {POINTS_OPTIONS.map((n) => (
                 <button key={n} type="button" aria-pressed={points === n} className={points === n ? 'selected' : ''} onClick={() => setPoints(n)}>{n}</button>
               ))}
             </div>
+          </div>
           </div>
 
           <div className="arc-field">
@@ -276,8 +245,9 @@ function TriviaGame({ onExit, categories, version }: Props & { categories: reado
 
           {setupNote ? <Notice>{setupNote}</Notice> : null}
           {confirmNew ? <Notice>This replaces your saved match.</Notice> : null}
-          <button type="submit" className="arc-btn arc-primary">{confirmNew ? 'Replace and start' : 'Start match'}</button>
-        </form>
+          <div className="arc-spacer" />
+          <button type="button" className="arc-btn arc-primary" onClick={startNew}>{confirmNew ? 'Replace and start' : 'Start match'}</button>
+        </div>
       </div>
     )
   }

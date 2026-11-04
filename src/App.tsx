@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import ArcadeScreen from './arcade/ArcadeScreen'
 import { pressHardwareKey } from './arcade/shared/hardware'
+import { NavSlotContext } from './arcade/shared/navSlot'
 
 type Orientation = 'portrait' | 'landscape'
 type HomeSection = 'Today' | 'Dinodia' | 'Discover' | 'Arcade' | 'My Life' | 'Settings'
@@ -30,6 +31,7 @@ function App() {
   const [latency, setLatency] = useState(650)
   const [selectedSection, setSelectedSection] = useState<HomeSection | null>(null)
   const [activePage, setActivePage] = useState<'home' | 'arcade'>('home')
+  const [navSlot, setNavSlot] = useState<HTMLElement | null>(null)
 
   useEffect(() => {
     if (!refreshing) return
@@ -79,6 +81,7 @@ function App() {
               <div className="screen-surface">
                 <div className="screen-chrome">
                   <button className="screen-home-button" onClick={() => setActivePage('home')} type="button" aria-label="Back to home">MAGTILE</button>
+                  <span className="nav-slot" ref={setNavSlot} />
                   <span>08:42</span>
                   <span>100%</span>
                 </div>
@@ -103,7 +106,11 @@ function App() {
                       </button>
                     ))}
                   </nav>
-                </div> : <ArcadeScreen />}
+                </div> : (
+                  <NavSlotContext.Provider value={navSlot}>
+                    {orientation === 'portrait' ? <ArcadeScreen /> : <div className="arc-portrait-only"><p>The Arcade is designed for the portrait 480 × 800 screen.</p><p>Switch Orientation to Portrait.</p></div>}
+                  </NavSlotContext.Provider>
+                )}
 
               </div>
             </div>

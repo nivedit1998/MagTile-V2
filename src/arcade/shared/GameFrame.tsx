@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react'
+import { createPortal } from 'react-dom'
+import { useNavSlot } from './navSlot'
 
 interface GameBarProps {
   title: string
@@ -8,16 +10,21 @@ interface GameBarProps {
   onRight?: () => void
 }
 
-/** Thin top bar shared by every game: back/exit on the left, optional menu on the right. */
+/**
+ * A game has no header of its own: the whole screen below the persistent navigation bar belongs to the game.
+ * Its back/menu controls are placed inside that navigation bar instead.
+ */
 export function GameBar({ title, backLabel, onBack, rightLabel, onRight }: GameBarProps) {
-  return (
-    <div className="arc-bar">
-      <button type="button" onClick={onBack}>{backLabel}</button>
-      <h2>{title}</h2>
+  const slot = useNavSlot()
+  if (!slot) return null
+  return createPortal(
+    <div className="nav-actions" role="group" aria-label={title}>
+      <button type="button" className="nav-action" onClick={onBack}>{backLabel}</button>
       {rightLabel && onRight ? (
-        <button type="button" className="arc-bar-right" onClick={onRight}>{rightLabel}</button>
+        <button type="button" className="nav-action" onClick={onRight}>{rightLabel}</button>
       ) : null}
-    </div>
+    </div>,
+    slot,
   )
 }
 
@@ -32,7 +39,7 @@ export function ComingSoon({ name, onBack }: ComingSoonProps) {
       <GameBar title={name} backLabel="‹ ARCADE" onBack={onBack} />
       <div className="arc-body arc-center">
         <p className="arc-lead">Not built yet</p>
-        <p className="arc-text">{name} arrives in a later phase. Tic-Tac-Toe is playable now.</p>
+        <p className="arc-text">{name} arrives in a later phase.</p>
         <button type="button" className="arc-btn arc-primary" onClick={onBack}>Back to Arcade</button>
       </div>
     </div>

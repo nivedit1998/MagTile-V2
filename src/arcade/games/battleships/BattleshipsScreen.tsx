@@ -1,7 +1,6 @@
 import { useRef, useState } from 'react'
 import type { Random } from '../../shared/deck'
 import { GameBar, Notice } from '../../shared/GameFrame'
-import { MAX_NAME_LENGTH, validateNameList } from '../../shared/names'
 import { PrivateCover } from '../../shared/PrivateCover'
 import { useGameSave } from '../../shared/useGameSave'
 import { usePrivacy } from '../../shared/usePrivacy'
@@ -69,8 +68,7 @@ interface Props {
 export default function BattleshipsScreen({ onExit }: Props) {
   const { loading, saved, warning, save, clear } = useGameSave<Settings, State>(GAME_ID, GAME_VERSION, parse)
 
-  const [names, setNames] = useState<[string, string]>(['Player 1', 'Player 2'])
-  const [errors, setErrors] = useState<(string | null)[]>([])
+  const names: [string, string] = ['Player 1', 'Player 2']
   const [confirmNew, setConfirmNew] = useState(false)
 
   const [settings, setSettings] = useState<Settings | null>(null)
@@ -127,19 +125,16 @@ export default function BattleshipsScreen({ onExit }: Props) {
   // ---- Setup -----------------------------------------------------------------
   if (!state || !settings) {
     const startNew = () => {
-      const check = validateNameList(names, 2, 2)
-      setErrors(check.errors)
-      if (!check.ok) return
       if (saved.kind === 'ok' && !confirmNew) {
         setConfirmNew(true)
         return
       }
-      begin({ names: [check.names[0], check.names[1]] })
+      begin({ names })
     }
     return (
       <div className="arc-game">
         <GameBar title="Battleships" backLabel="‹ ARCADE" onBack={onExit} />
-        <form className="arc-body" onSubmit={(e) => { e.preventDefault(); startNew() }} noValidate>
+        <div className="arc-body">
           {saved.kind === 'ok' ? (
             <div className="arc-card">
               <p className="arc-lead">Saved game</p>
@@ -149,24 +144,12 @@ export default function BattleshipsScreen({ onExit }: Props) {
           ) : null}
           {saved.kind === 'bad' ? <Notice>{saved.reason} Starting a new game replaces it.</Notice> : null}
 
-          <p className="arc-text arc-rules">
-            Each player secretly places 5 ships (lengths 5, 4, 3, 3, 2) on a 10 × 10 grid. Ships may touch but not overlap. Take turns firing one shot;
-            a hit does not earn another shot. Sink all five enemy ships to win.
-          </p>
-          <p className="arc-text arc-rules">
-            Privacy: fleets are placed behind a cover and each turn starts covered; the cover returns if the page is hidden or reopened.
-            The game is saved on this device in plain form (including both fleets); anyone with browser tools could read it.
-          </p>
-          {([0, 1] as const).map((i) => (
-            <label className="arc-field" key={i}>
-              <span>Player {i + 1}</span>
-              <input value={names[i]} maxLength={MAX_NAME_LENGTH} autoComplete="off" onChange={(e) => setNames((cur) => (i === 0 ? [e.target.value, cur[1]] : [cur[0], e.target.value]))} aria-invalid={errors[i] != null} />
-              {errors[i] ? <em>{errors[i]}</em> : null}
-            </label>
-          ))}
+          <p className="arc-lead">Battleships</p>
+          <p className="arc-text arc-rules">Each player secretly places 5 ships on a 10 × 10 grid, then you take turns firing one shot. Sink all five enemy ships to win. Fleets are placed behind a cover.</p>
+          <div className="arc-spacer" />
           {confirmNew ? <Notice>This replaces your saved game.</Notice> : null}
-          <button type="submit" className="arc-btn arc-primary">{confirmNew ? 'Replace and start' : 'Start game'}</button>
-        </form>
+          <button type="button" className="arc-btn arc-primary" onClick={startNew}>{confirmNew ? 'Replace and start' : 'Start game'}</button>
+        </div>
       </div>
     )
   }

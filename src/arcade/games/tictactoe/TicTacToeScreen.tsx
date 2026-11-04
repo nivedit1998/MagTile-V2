@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { GameBar, Notice } from '../../shared/GameFrame'
-import { readPref, readSave, removeSave, writePref, writeSave, type ReadResult } from '../../storage/saves'
+import { readSave, removeSave, writeSave, type ReadResult } from '../../storage/saves'
 import {
   GAME_VERSION, MARKS, MATCH_LENGTHS, MAX_NAME_LENGTH, matchWinner, newMatch, nextRound, parseSettings,
   parseState, place, replayStarter, validateNames,
@@ -8,7 +8,6 @@ import {
 } from './rules'
 
 const GAME_ID = 'tictactoe'
-const NAMES_PREF = 'magtile.arcade.tictactoe.names'
 const LENGTH_LABEL: Record<MatchLength, string> = { 1: 'Single game', 3: 'Best of 3', 5: 'Best of 5' }
 
 type View = 'loading' | 'setup' | 'play' | 'results'
@@ -32,8 +31,8 @@ function interpret(read: ReadResult): Saved {
 export default function TicTacToeScreen({ onExit }: Props) {
   const [view, setView] = useState<View>('loading')
   const [saved, setSaved] = useState<Saved>({ kind: 'none' })
-  const [nameA, setNameA] = useState('')
-  const [nameB, setNameB] = useState('')
+  const [nameA, setNameA] = useState('Player 1')
+  const [nameB, setNameB] = useState('Player 2')
   const [rounds, setRounds] = useState<MatchLength>(3)
   const [errors, setErrors] = useState<[string | null, string | null]>([null, null])
   const [settings, setSettings] = useState<Settings | null>(null)
@@ -47,11 +46,6 @@ export default function TicTacToeScreen({ onExit }: Props) {
   // Load any saved match and the last-used names.
   useEffect(() => {
     let live = true
-    const prefs = readPref<unknown>(NAMES_PREF)
-    if (Array.isArray(prefs) && typeof prefs[0] === 'string' && typeof prefs[1] === 'string') {
-      setNameA(prefs[0].slice(0, MAX_NAME_LENGTH))
-      setNameB(prefs[1].slice(0, MAX_NAME_LENGTH))
-    }
     readSave(GAME_ID, GAME_VERSION).then((read) => {
       if (!live) return
       const result = interpret(read)
@@ -99,7 +93,6 @@ export default function TicTacToeScreen({ onExit }: Props) {
       setConfirmNew(true)
       return
     }
-    writePref(NAMES_PREF, check.names)
     setNameA(check.names[0])
     setNameB(check.names[1])
     begin({ names: check.names, rounds }, newMatch(0), true)
@@ -190,31 +183,6 @@ export default function TicTacToeScreen({ onExit }: Props) {
             Two players take turns. Three in a row wins the round. A full board is a draw.
             The player who starts alternates each round.
           </p>
-
-          <label className="arc-field">
-            <span>Player 1 · {MARKS[0]}</span>
-            <input
-              value={nameA}
-              maxLength={MAX_NAME_LENGTH}
-              autoComplete="off"
-              onChange={(e) => setNameA(e.target.value)}
-              aria-invalid={errors[0] !== null}
-              aria-describedby={errors[0] ? 'ttt-err-a' : undefined}
-            />
-            {errors[0] ? <em id="ttt-err-a">{errors[0]}</em> : null}
-          </label>
-          <label className="arc-field">
-            <span>Player 2 · {MARKS[1]}</span>
-            <input
-              value={nameB}
-              maxLength={MAX_NAME_LENGTH}
-              autoComplete="off"
-              onChange={(e) => setNameB(e.target.value)}
-              aria-invalid={errors[1] !== null}
-              aria-describedby={errors[1] ? 'ttt-err-b' : undefined}
-            />
-            {errors[1] ? <em id="ttt-err-b">{errors[1]}</em> : null}
-          </label>
 
           <div className="arc-seg" role="group" aria-label="Match length">
             {MATCH_LENGTHS.map((n) => (

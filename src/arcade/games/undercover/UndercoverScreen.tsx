@@ -5,7 +5,6 @@ import { GameBar, Notice } from '../../shared/GameFrame'
 import { BallotView, PrivateCover, TallyList } from '../../shared/PrivateCover'
 import { usePrivacy } from '../../shared/usePrivacy'
 import { useGameSave } from '../../shared/useGameSave'
-import { MAX_NAME_LENGTH } from '../../shared/names'
 import {
   GAME_VERSION, MAX_PLAYERS, MIN_PLAYERS, acknowledgeWord, aliveIndexes, continueGame, defaultUndercover, discussionOrder, maxUndercover,
   newGame, parseSettings, parseState, startRunoff, startVote, validateSetup, vote, wordFor,
@@ -32,7 +31,6 @@ export default function UndercoverScreen({ onExit }: Props) {
 
   const [names, setNames] = useState<string[]>(['Player 1', 'Player 2', 'Player 3', 'Player 4'])
   const [undercover, setUndercover] = useState(1)
-  const [errors, setErrors] = useState<(string | null)[]>([])
   const [setupNote, setSetupNote] = useState<string | null>(null)
   const [confirmNew, setConfirmNew] = useState(false)
 
@@ -85,7 +83,6 @@ export default function UndercoverScreen({ onExit }: Props) {
     const effective = Math.min(undercover, max)
     const startNew = () => {
       const check = validateSetup(names, effective)
-      setErrors(check.errors)
       setSetupNote(check.undercoverError)
       if (!check.ok) return
       if (saved.kind === 'ok' && !confirmNew) {
@@ -97,7 +94,7 @@ export default function UndercoverScreen({ onExit }: Props) {
     return (
       <div className="arc-game">
         <GameBar title="Undercover" backLabel="‹ ARCADE" onBack={onExit} />
-        <form className="arc-body" onSubmit={(e) => { e.preventDefault(); startNew() }} noValidate>
+        <div className="arc-body">
           {saved.kind === 'ok' ? (
             <div className="arc-card">
               <p className="arc-lead">Saved game</p>
@@ -107,15 +104,9 @@ export default function UndercoverScreen({ onExit }: Props) {
           ) : null}
           {saved.kind === 'bad' ? <Notice>{saved.reason} Starting a new game replaces it.</Notice> : null}
 
-          <p className="arc-text arc-rules">
-            Civilians share one secret word; the undercover players get a similar but different word and don’t know it.
-            Describe your word, then vote someone out. Civilians win when every undercover player is out; the undercover win
-            when they are as many as the civilians left.
-          </p>
-          <p className="arc-text arc-rules">
-            Privacy: each person sees their word alone, behind a cover. The game is saved on this device in plain form
-            (including words and roles) so it can resume; anyone with browser tools could read it.
-          </p>
+          <p className="arc-lead">Undercover</p>
+          <p className="arc-text arc-rules">Civilians share one secret word; undercover players get a similar one. Describe it, then vote someone out. Each person sees their word alone, behind a cover.</p>
+          <div className="arc-field"><span>Players</span></div>
 
           <div className="arc-seg arc-wrap" role="group" aria-label="Number of players">
             {Array.from({ length: MAX_PLAYERS - MIN_PLAYERS + 1 }, (_, i) => MIN_PLAYERS + i).map((n) => (
@@ -133,13 +124,6 @@ export default function UndercoverScreen({ onExit }: Props) {
               </button>
             ))}
           </div>
-          {names.map((name, i) => (
-            <label className="arc-field" key={i}>
-              <span>Player {i + 1}</span>
-              <input value={name} maxLength={MAX_NAME_LENGTH} autoComplete="off" onChange={(e) => setNames((cur) => cur.map((x, k) => (k === i ? e.target.value : x)))} aria-invalid={errors[i] != null} />
-              {errors[i] ? <em>{errors[i]}</em> : null}
-            </label>
-          ))}
 
           <div className="arc-field">
             <span>Undercover players (max {max})</span>
@@ -152,8 +136,9 @@ export default function UndercoverScreen({ onExit }: Props) {
 
           {setupNote ? <Notice>{setupNote}</Notice> : null}
           {confirmNew ? <Notice>This replaces your saved game.</Notice> : null}
-          <button type="submit" className="arc-btn arc-primary">{confirmNew ? 'Replace and start' : 'Start game'}</button>
-        </form>
+          <div className="arc-spacer" />
+          <button type="button" className="arc-btn arc-primary" onClick={startNew}>{confirmNew ? 'Replace and start' : 'Start game'}</button>
+        </div>
       </div>
     )
   }
