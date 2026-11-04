@@ -1,4 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
+import ArcadeScreen from './arcade/ArcadeScreen'
+import { pressHardwareKey } from './arcade/shared/hardware'
 
 type Orientation = 'portrait' | 'landscape'
 type HomeSection = 'Today' | 'Dinodia' | 'Discover' | 'Arcade' | 'My Life' | 'Settings'
@@ -10,19 +12,6 @@ const HOME_SECTIONS: { name: HomeSection; index: string }[] = [
   { name: 'Arcade', index: '04' },
   { name: 'My Life', index: '05' },
   { name: 'Settings', index: '06' },
-]
-
-const ARCADE_GAMES = [
-  { name: 'Mafia / Werewolf', type: 'PASS & PLAY', description: 'Secret roles · night and day · voting' },
-  { name: 'Undercover', type: 'PASS & PLAY', description: 'Secret words · discussion · voting' },
-  { name: 'Word Rush', type: 'TEAMS', description: 'Describe words · categories · timer' },
-  { name: 'Charades', type: 'TEAMS', description: 'Movies and actions · prompts · timer' },
-  { name: 'Battleships', type: '2 PLAYERS', description: 'Hidden boards · take turns · sink ships' },
-  { name: 'Tic-Tac-Toe', type: '2 PLAYERS', description: 'Take turns · track the score' },
-  { name: 'Hangman', type: 'PASS & PLAY', description: 'Guess letters · use your own words' },
-  { name: 'Trivia Battle', type: 'PLAYERS OR TEAMS', description: 'Choose a quiz · play offline · keep score' },
-  { name: 'Minesweeper', type: 'SOLO', description: 'Offline number-grid puzzle' },
-  { name: 'Nonograms', type: 'SOLO', description: 'Offline picture-logic puzzles' },
 ]
 
 const PICCO = {
@@ -41,31 +30,12 @@ function App() {
   const [latency, setLatency] = useState(650)
   const [selectedSection, setSelectedSection] = useState<HomeSection | null>(null)
   const [activePage, setActivePage] = useState<'home' | 'arcade'>('home')
-  const [selectedGame, setSelectedGame] = useState<string | null>(null)
-  const arcadeListRef = useRef<HTMLDivElement>(null)
-
-  const scrollArcade = (direction: 'up' | 'down') => {
-    const list = arcadeListRef.current
-    if (!list) return
-    list.scrollBy({ top: direction === 'down' ? list.clientHeight * 0.75 : -list.clientHeight * 0.75, behavior: 'smooth' })
-  }
 
   useEffect(() => {
     if (!refreshing) return
     const timer = window.setTimeout(() => setRefreshing(false), latency)
     return () => window.clearTimeout(timer)
   }, [refreshing, latency])
-
-  useEffect(() => {
-    if (activePage !== 'arcade') return
-    const handlePageKey = (event: KeyboardEvent) => {
-      if (event.key !== 'PageDown' && event.key !== 'PageUp') return
-      event.preventDefault()
-      scrollArcade(event.key === 'PageDown' ? 'down' : 'up')
-    }
-    window.addEventListener('keydown', handlePageKey)
-    return () => window.removeEventListener('keydown', handlePageKey)
-  }, [activePage])
 
   const simulateRefresh = () => {
     setRefreshing(false)
@@ -133,37 +103,13 @@ function App() {
                       </button>
                     ))}
                   </nav>
-                </div> : <section className="arcade-screen" aria-label="Arcade games">
-                  <header className="arcade-heading">
-                    <h2>Arcade</h2>
-                    <span>10 GAMES</span>
-                  </header>
-                  <div className="arcade-game-list" ref={arcadeListRef} tabIndex={0} aria-label="Game list. Use Page Up and Page Down to scroll.">
-                    {ARCADE_GAMES.map((game, index) => (
-                      <button
-                        className={`arcade-game-tile${selectedGame === game.name ? ' active' : ''}`}
-                        key={game.name}
-                        onClick={() => setSelectedGame(game.name)}
-                        type="button"
-                        aria-pressed={selectedGame === game.name}
-                      >
-                        <span className="arcade-game-number">{String(index + 1).padStart(2, '0')}</span>
-                        <span className="arcade-game-copy">
-                          <span className="arcade-game-name">{game.name}</span>
-                          <span className="arcade-game-description">{game.description}</span>
-                        </span>
-                        <span className="arcade-game-type">{game.type}</span>
-                      </button>
-                    ))}
-                  </div>
-                  <div className="arcade-page-hint"><span>PAGE BUTTONS</span><span>↑ ↓</span></div>
-                </section>}
+                </div> : <ArcadeScreen />}
 
               </div>
             </div>
             <div className="device-buttons" aria-label="Picco hardware controls">
-              <button type="button" aria-label="Page up" onClick={() => scrollArcade('up')} title="Page up" />
-              <button type="button" aria-label="Page down" onClick={() => scrollArcade('down')} title="Page down" />
+              <button type="button" aria-label="Page up" onMouseDown={(e) => e.preventDefault()} onClick={() => pressHardwareKey('PageUp')} title="Page up" />
+              <button type="button" aria-label="Page down" onMouseDown={(e) => e.preventDefault()} onClick={() => pressHardwareKey('PageDown')} title="Page down" />
               <span className="function-switch" aria-hidden="true" />
             </div>
           </div>
