@@ -20,6 +20,7 @@
 //   word     once per UK day       Wiktionary word of the day (CC BY-SA)
 
 import { readFileSync, writeFileSync } from 'node:fs'
+import { pathToFileURL } from 'node:url'
 
 const UA = 'MagTile/1.0 (personal project; https://github.com/nivedit1998/MagTile-V2)'
 const SCHEMA = 1
@@ -348,7 +349,7 @@ async function main() {
   }
 }
 
-if (process.argv[1] && import.meta.url === new URL(`file:///${process.argv[1].replace(/\\/g, '/')}`).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   main().catch((e) => {
     console.error(`error: ${e.message}`)
     process.exit(1)
