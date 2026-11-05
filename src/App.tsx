@@ -1,5 +1,7 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import ArcadeScreen from './arcade/ArcadeScreen'
+
+const DiscoverScreen = lazy(() => import('./discover/DiscoverScreen'))
 import { pressHardwareKey } from './arcade/shared/hardware'
 import { NavSlotContext } from './arcade/shared/navSlot'
 
@@ -30,7 +32,7 @@ function App() {
   const [refreshCount, setRefreshCount] = useState(0)
   const [latency, setLatency] = useState(650)
   const [selectedSection, setSelectedSection] = useState<HomeSection | null>(null)
-  const [activePage, setActivePage] = useState<'home' | 'arcade'>('home')
+  const [activePage, setActivePage] = useState<'home' | 'arcade' | 'discover'>('home')
   const [navSlot, setNavSlot] = useState<HTMLElement | null>(null)
 
   useEffect(() => {
@@ -95,6 +97,7 @@ function App() {
                         onClick={() => {
                           setSelectedSection(section.name)
                           if (section.name === 'Arcade') setActivePage('arcade')
+                          if (section.name === 'Discover') setActivePage('discover')
                         }}
                         type="button"
                         aria-pressed={selectedSection === section.name}
@@ -108,7 +111,9 @@ function App() {
                   </nav>
                 </div> : (
                   <NavSlotContext.Provider value={navSlot}>
-                    {orientation === 'portrait' ? <ArcadeScreen /> : <div className="arc-portrait-only"><p>The Arcade is designed for the portrait 480 × 800 screen.</p><p>Switch Orientation to Portrait.</p></div>}
+                    {orientation !== 'portrait' ? <div className="arc-portrait-only"><p>{activePage === 'discover' ? 'Discover' : 'The Arcade'} is designed for the portrait 480 × 800 screen.</p><p>Switch Orientation to Portrait.</p></div>
+                      : activePage === 'discover' ? <Suspense fallback={<p className="arc-portrait-only">Loading…</p>}><DiscoverScreen /></Suspense>
+                      : <ArcadeScreen />}
                   </NavSlotContext.Provider>
                 )}
 

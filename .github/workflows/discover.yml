@@ -1,0 +1,32 @@
+# Keeps the Discover pages fresh with no manual work. Runs hourly (UK news) and the script itself
+# refreshes the once-a-day items (facts, history, trivia, riddle, word) when the UK date changes.
+# It only reads public sources and writes one file (discover.json) to the public `packs` bucket.
+name: Discover ingest
+
+on:
+  schedule:
+    - cron: '7 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: discover-ingest
+  cancel-in-progress: false
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Fetch sources and publish discover.json
+        run: node tools/discover/ingest.mjs --apply
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          API_NINJAS_KEY: ${{ secrets.API_NINJAS_KEY }}
