@@ -11,7 +11,7 @@ const ATTEMPT_KEY = 'magtile.discover.attempt'
 const STATE_KEY = 'magtile.discover.state'
 const MAX_BYTES = 400_000
 const TIMEOUT_MS = 10_000
-export const AUTO_INTERVAL_MS = 60 * 60 * 1000 // news is checked hourly while connected
+export const AUTO_INTERVAL_MS = 60 * 60 * 1000 // opening Discover checks at most once an hour
 export const MANUAL_INTERVAL_MS = 60 * 1000
 
 export interface NewsItem { h: string; s: string; t: string | null }
@@ -198,16 +198,10 @@ export function useDiscover(): DiscoverState {
     }
   }, [])
 
-  // On open, then hourly while open, and again when the connection returns (each is gated by the interval).
+  // One check when Discover is opened (skipped if the last attempt was under an hour ago). No timers and no
+  // background polling: after that the content is only fetched when the user taps Refresh.
   useEffect(() => {
     void run(false)
-    const timer = window.setInterval(() => void run(false), AUTO_INTERVAL_MS)
-    const onOnline = () => void run(false)
-    window.addEventListener('online', onOnline)
-    return () => {
-      window.clearInterval(timer)
-      window.removeEventListener('online', onOnline)
-    }
   }, [run])
 
   return { bundle, status, detail, refresh: () => run(true) }
