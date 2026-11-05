@@ -286,6 +286,31 @@ async function loadPrevious(supabaseUrl) {
   }
 }
 
+// Longest a value may go without a successful refresh before the run is marked failed.
+const MAX_AGE_HOURS = { news: 6, facts: 72, history: 72, trivia: 72, riddle: 72, word: 72 }
+
+export function staleSources(bundle, now = Date.now()) {
+  const out = []
+  for (const [name, hours] of Object.entries(MAX_AGE_HOURS)) {
+    const at = Date.parse(bundle[name]?.fetchedAt ?? '')
+    if (!Number.isFinite(at)) out.push(`${name}: no value yet`)
+    else if (now - at > hours * 3_600_000) out.push(`${name}: last refreshed ${new Date(at).toISOString()} (over ${hours} h ago)`)
+  }
+  return out
+}
+
+// One tiny read-only database request so the hosted project always sees ordinary activity (free projects
+// pause after a week of none). Never fails the run.
+async function keepDatabaseActive(supabaseUrl) {
+  try {
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+    const res = await fetch(`${supabaseUrl}/rest/v1/content_packs?select=pack_key&limit=1`, { headers: { apikey: key, Authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(15_000) })
+    log(`database activity ping: HTTP ${res.status}`)
+  } catch (e) {
+    log(`database activity ping failed (${e.message}); ignored`)
+  }
+}
+
 async function main() {
   const supabaseUrl = (process.env.SUPABASE_URL ?? '').replace(/\/+$/, '')
   const apply = flag('apply')
@@ -341,6 +366,14 @@ async function main() {
     })
     if (!res.ok) throw new Error(`upload failed: HTTP ${res.status} ${(await res.text()).slice(0, 200)}`)
     log(`published discover.json (${text.length} bytes)`)
+  }
+  if (apply) await keepDatabaseActive(supabaseUrl)
+  // A source that keeps failing must not go unnoticed for months: once a value is older than its allowance,
+  // fail the run (GitHub emails the owner). The page keeps showing the last good value in the meantime.
+  const stale = staleSources(bundle)
+  if (stale.length) {
+    console.error(`ALERT: stale source(s), please check:\n- ${stale.join('\n- ')}`)
+    process.exitCode = 1
   }
   if (problems.length) {
     console.error(`finished with ${problems.length} source problem(s):\n- ${problems.join('\n- ')}`)

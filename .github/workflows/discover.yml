@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: read
+  actions: write # lets the keep-alive step re-enable this workflow
 
 concurrency:
   group: discover-ingest
@@ -30,3 +31,10 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           API_NINJAS_KEY: ${{ secrets.API_NINJAS_KEY }}
+      # GitHub auto-disables scheduled workflows after 60 days without repository activity. Re-enabling this
+      # workflow on every scheduled run is the documented way to stop that without dummy commits.
+      - name: Keep schedule alive
+        if: always()
+        run: gh api --method PUT "repos/$GITHUB_REPOSITORY/actions/workflows/discover.yml/enable" || echo "keep-alive skipped"
+        env:
+          GH_TOKEN: ${{ github.token }}
