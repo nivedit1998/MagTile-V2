@@ -1,0 +1,28 @@
+/* My Life: fixed 480x800 stage, no scrolling, touch only. Reuses the Arcade's --u logical pixel and classes. */
+.mylife-screen { display: flex; flex: 1; min-height: 0; flex-direction: column; overflow: hidden; }
+.ml-later { opacity: .55; }
+.ml-later[aria-disabled='true'] { cursor: default; }
+
+.pet-page .pet-body { display: flex; flex: 1; min-height: 0; flex-direction: column; gap: calc(10 * var(--u)); padding: calc(14 * var(--u)); overflow: hidden; }
+.pet-head { display: flex; flex: 0 0 auto; align-items: baseline; justify-content: space-between; gap: calc(8 * var(--u)); }
+.pet-head strong { font-size: calc(34 * var(--u)); line-height: 1; letter-spacing: -.02em; }
+.pet-head span { font-size: calc(15 * var(--u)); font-weight: 700; letter-spacing: .08em; }
+.pet-thought { flex: 0 0 auto; display: -webkit-box; margin: 0; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; min-height: calc(2.5 * 22 * var(--u)); padding: calc(10 * var(--u)) calc(14 * var(--u)); border: 2px solid currentColor; font-size: calc(22 * var(--u)); font-weight: 700; line-height: 1.15; }
+.pet-stage { position: relative; display: flex; flex: 1 1 0; min-height: 0; align-items: center; justify-content: center; }
+.pet-art { height: 100%; max-height: calc(300 * var(--u)); aspect-ratio: 1; }
+.pet-mark { position: absolute; top: calc(8 * var(--u)); right: calc(56 * var(--u)); font-size: calc(34 * var(--u)); font-weight: 800; letter-spacing: .1em; }
+
+.pet-needs { display: flex; flex: 0 0 auto; flex-direction: column; gap: calc(6 * var(--u)); }
+.pet-meter { display: grid; grid-template-columns: calc(96 * var(--u)) minmax(0, 1fr) calc(40 * var(--u)); align-items: center; gap: calc(8 * var(--u)); font-size: calc(16 * var(--u)); font-weight: 700; letter-spacing: .06em; }
+.pet-cells { display: grid; grid-template-columns: repeat(10, 1fr); gap: calc(3 * var(--u)); }
+.pet-cells i { height: calc(18 * var(--u)); border: 2px solid currentColor; }
+.pet-cells i.on { background: currentColor; }
+.pet-meter-num { text-align: right; }
+.pet-actions { display: flex; flex: 0 0 auto; gap: calc(8 * var(--u)); }
+.pet-actions .arc-btn { flex: 1; min-height: calc(66 * var(--u)); font-size: calc(26 * var(--u)); }
+.pet-message { flex: 0 0 auto; margin: 0; min-height: calc(26 * var(--u)); text-align: center; font-size: calc(19 * var(--u)); font-weight: 700; }
+.pet-facts { display: flex; flex: 0 0 auto; justify-content: space-between; gap: calc(8 * var(--u)); padding-top: calc(8 * var(--u)); border-top: 2px solid currentColor; font-size: calc(16 * var(--u)); }
+.pet-facts b { font-size: calc(24 * var(--u)); }
+.pet-names { display: grid; flex: 0 0 auto; grid-template-columns: repeat(3, 1fr); gap: calc(8 * var(--u)); }
+.pet-names .arc-btn { min-height: calc(62 * var(--u)); padding: 0; font-size: calc(24 * var(--u)); }
+.pet-egg { flex: 0 0 auto; margin: 0; text-align: center; font-size: calc(22 * var(--u)); }

@@ -2,8 +2,10 @@ import { lazy, Suspense, useEffect, useState } from 'react'
 import ArcadeScreen from './arcade/ArcadeScreen'
 
 const DiscoverScreen = lazy(() => import('./discover/DiscoverScreen'))
+const MyLifeScreen = lazy(() => import('./mylife/MyLifeScreen'))
 import { pressHardwareKey } from './arcade/shared/hardware'
 import { NavSlotContext } from './arcade/shared/navSlot'
+import { recordActivity } from './mylife/activity'
 
 type Orientation = 'portrait' | 'landscape'
 type HomeSection = 'Today' | 'Dinodia' | 'Discover' | 'Arcade' | 'My Life' | 'Settings'
@@ -32,7 +34,7 @@ function App() {
   const [refreshCount, setRefreshCount] = useState(0)
   const [latency, setLatency] = useState(650)
   const [selectedSection, setSelectedSection] = useState<HomeSection | null>(null)
-  const [activePage, setActivePage] = useState<'home' | 'arcade' | 'discover'>('home')
+  const [activePage, setActivePage] = useState<'home' | 'arcade' | 'discover' | 'mylife'>('home')
   const [navSlot, setNavSlot] = useState<HTMLElement | null>(null)
 
   useEffect(() => {
@@ -96,8 +98,9 @@ function App() {
                         key={section.name}
                         onClick={() => {
                           setSelectedSection(section.name)
-                          if (section.name === 'Arcade') setActivePage('arcade')
-                          if (section.name === 'Discover') setActivePage('discover')
+                          if (section.name === 'Arcade') { recordActivity('arcade'); setActivePage('arcade') }
+                          if (section.name === 'Discover') { recordActivity('discover'); setActivePage('discover') }
+                          if (section.name === 'My Life') setActivePage('mylife')
                         }}
                         type="button"
                         aria-pressed={selectedSection === section.name}
@@ -111,8 +114,9 @@ function App() {
                   </nav>
                 </div> : (
                   <NavSlotContext.Provider value={navSlot}>
-                    {orientation !== 'portrait' ? <div className="arc-portrait-only"><p>{activePage === 'discover' ? 'Discover' : 'The Arcade'} is designed for the portrait 480 × 800 screen.</p><p>Switch Orientation to Portrait.</p></div>
+                    {orientation !== 'portrait' ? <div className="arc-portrait-only"><p>{activePage === 'discover' ? 'Discover' : activePage === 'mylife' ? 'My Life' : 'The Arcade'} is designed for the portrait 480 × 800 screen.</p><p>Switch Orientation to Portrait.</p></div>
                       : activePage === 'discover' ? <Suspense fallback={<p className="arc-portrait-only">Loading…</p>}><DiscoverScreen /></Suspense>
+                      : activePage === 'mylife' ? <Suspense fallback={<p className="arc-portrait-only">Loading…</p>}><MyLifeScreen /></Suspense>
                       : <ArcadeScreen />}
                   </NavSlotContext.Provider>
                 )}
