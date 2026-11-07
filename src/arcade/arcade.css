@@ -146,6 +146,10 @@
 .round-actions { display: flex; gap: calc(10 * var(--u)); padding: calc(10 * var(--u)) calc(18 * var(--u)) calc(18 * var(--u)); }
 .round-actions .arc-btn { flex: 1; min-height: calc(76 * var(--u)); font-size: calc(26 * var(--u)); }
 .round-actions .arc-btn:disabled { opacity: .5; }
+.round-untimed { font-size: calc(22 * var(--u)); letter-spacing: .12em; }
+.round-end { padding: 0 calc(18 * var(--u)) calc(18 * var(--u)); }
+.round-end .arc-btn { width: 100%; min-height: calc(60 * var(--u)); font-size: calc(22 * var(--u)); }
+.round-actions:has(+ .round-end) { padding-bottom: calc(10 * var(--u)); }
 .card-list { margin: 0; padding: 0; list-style: none; font-size: calc(20 * var(--u)); }
 .card-list li { padding: calc(6 * var(--u)) 0; border-bottom: 1px solid currentColor; }
 .card-list b { display: inline-block; width: calc(26 * var(--u)); }

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { type Card, type Category, buildPool } from '../content/banks'
 import { GameBar, Notice } from './GameFrame'
 import {
-  MIN_POOL, SECONDS_OPTIONS, TURNS_OPTIONS, cardToken, markCorrect, markPass, newRounds, nextTurn,
+  MIN_POOL, SECONDS_OPTIONS, TURNS_OPTIONS, UNLIMITED, cardToken, finishTurn, isUnlimited, markCorrect, markPass, newRounds, nextTurn,
   parseRoundSettings, parseRoundState, pauseTurn, ranking, reconcile, resumeTurn, startTurn, teamOf, totalTurns,
   type Result, type RoundSettings, type RoundState,
 } from './rounds'
@@ -114,6 +114,17 @@ export default function TeamRoundScreen({ config, onExit }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state?.phase, state?.timer.endsAt, settings])
 
+  // Safety net: the exact-deadline timeout above can be delayed or lost (device sleep, a throttled or suspended page,
+  // a clock jump). The 1 s display tick and the return from a hidden page also end an expired turn, so it can never
+  // be left at 0s with the buttons disabled.
+  useEffect(() => {
+    const cur = stateRef.current
+    if (!settings || !cur || cur.phase !== 'playing') return
+    const next = reconcile(cur, Date.now())
+    if (next !== cur) commit(next, settings)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [now])
+
   // Cover the card when the page is hidden mid-turn, and after resuming a saved game.
   useEffect(() => {
     const onHide = () => {
@@ -208,7 +219,7 @@ export default function TeamRoundScreen({ config, onExit }: Props) {
             <span>Seconds per turn</span>
             <div className="arc-seg" role="group" aria-label="Seconds per turn">
               {SECONDS_OPTIONS.map((n) => (
-                <button key={n} type="button" aria-pressed={seconds === n} className={seconds === n ? 'selected' : ''} onClick={() => setSeconds(n)}>{n}s</button>
+                <button key={n} type="button" aria-pressed={seconds === n} className={seconds === n ? 'selected' : ''} onClick={() => setSeconds(n)}>{n === UNLIMITED ? 'No limit' : `${n}s`}</button>
               ))}
             </div>
           </div>
@@ -249,6 +260,7 @@ export default function TeamRoundScreen({ config, onExit }: Props) {
   // ---- Play ------------------------------------------------------------------
   const teamCount = settings.teams.length
   const team = teamOf(state, teamCount)
+  const unlimited = isUnlimited(settings)
   const left = remaining(state.timer, state.phase === 'playing' ? now : Date.now())
   const expiredNow = state.phase === 'playing' && isExpired(state.timer, now)
   const showMenu = menu !== 'closed' || state.phase === 'paused'
@@ -300,7 +312,7 @@ export default function TeamRoundScreen({ config, onExit }: Props) {
           <p className="arc-text">Pass the device to {config.holder} for {settings.teams[team]}. The first card appears when you start.</p>
           {notice ? <Notice>{notice}</Notice> : null}
           <button type="button" className="arc-btn arc-primary" autoFocus onClick={() => { setNotice(null); act((s, cfg) => startTurn(s, cfg, Date.now(), browserRandom)) }}>
-            Start {settings.turnSeconds}s turn
+            {unlimited ? 'Start turn' : `Start ${settings.turnSeconds}s turn`}
           </button>
         </div>
       </>
@@ -311,7 +323,7 @@ export default function TeamRoundScreen({ config, onExit }: Props) {
       <>
         {scoreboard}
         <div className="arc-body">
-          <p className="arc-kicker">TIME’S UP · {settings.teams[team].toUpperCase()}</p>
+          <p className="arc-kicker">{unlimited ? 'TURN ENDED' : 'TIME’S UP'} · {settings.teams[team].toUpperCase()}</p>
           <p className="arc-big">+{state.correct.length}</p>
           <p className="arc-text">
             {state.correct.length} correct · {state.passed.length} passed{state.skipped.length ? ` · ${state.skipped.length} unfinished` : ''}
@@ -330,8 +342,8 @@ export default function TeamRoundScreen({ config, onExit }: Props) {
     body = (
       <div className="arc-body arc-center">
         <p className="arc-kicker">{settings.teams[team].toUpperCase()} · TURN IN PROGRESS</p>
-        <p className="arc-big" aria-live="off">{displaySeconds(left)}s left</p>
-        <p className="arc-text">The card is hidden. Tap to show it again; the clock keeps running.</p>
+        <p className="arc-big" aria-live="off">{unlimited ? 'No time limit' : `${displaySeconds(left)}s left`}</p>
+        <p className="arc-text">{unlimited ? 'The card is hidden. Tap to show it again.' : 'The card is hidden. Tap to show it again; the clock keeps running.'}</p>
         <button type="button" className="arc-btn arc-primary" autoFocus onClick={() => setCovered(false)}>Show card</button>
       </div>
     )
@@ -342,7 +354,7 @@ export default function TeamRoundScreen({ config, onExit }: Props) {
         {scoreboard}
         {notice ? <Notice>{notice}</Notice> : null}
         <div className="round-card" role="group" aria-label="Current card">
-          <p className="round-timer" aria-label={`${displaySeconds(left)} seconds left`}>{displaySeconds(left)}s</p>
+          {unlimited ? <p className="round-timer round-untimed">NO TIME LIMIT</p> : <p className="round-timer" aria-label={`${displaySeconds(left)} seconds left`}>{displaySeconds(left)}s</p>}
           <p className="round-text">{card?.text}</p>
           {card?.meta ? <p className="round-meta">{card.meta}</p> : null}
         </div>
@@ -350,6 +362,11 @@ export default function TeamRoundScreen({ config, onExit }: Props) {
           <button type="button" className="arc-btn" disabled={expiredNow} onClick={() => act((s, cfg) => markPass(s, cfg, token, Date.now(), browserRandom))}>Pass</button>
           <button type="button" className="arc-btn arc-primary" disabled={expiredNow} autoFocus onClick={() => act((s, cfg) => markCorrect(s, cfg, token, Date.now(), browserRandom))}>Correct +1</button>
         </div>
+        {unlimited ? (
+          <div className="round-end">
+            <button type="button" className="arc-btn" onClick={() => act((s) => finishTurn(s))}>End turn</button>
+          </div>
+        ) : null}
       </>
     )
   } else {
@@ -377,7 +394,7 @@ export default function TeamRoundScreen({ config, onExit }: Props) {
             <>
               <p className="arc-lead">{state.phase === 'paused' ? 'Paused' : 'Menu'}</p>
               <p className="arc-text">
-                {state.phase === 'paused' ? `${displaySeconds(remaining(state.timer, now))}s left. The card is hidden. ` : ''}Progress is saved on this device.
+                {state.phase === 'paused' ? (unlimited ? 'The card is hidden. ' : `${displaySeconds(remaining(state.timer, now))}s left. The card is hidden. `) : ''}Progress is saved on this device.
               </p>
               <button
                 type="button"

@@ -8,7 +8,9 @@ import { type Timer, idleTimer, isExpired, parseTimer, pause, resume, startTimer
 
 export const MIN_POOL = 10
 export const TURNS_OPTIONS = [1, 2, 3] as const
-export const SECONDS_OPTIONS = [30, 60, 90] as const
+/** 0 means no limit: the players keep their own time and end the turn with a button. */
+export const UNLIMITED = 0
+export const SECONDS_OPTIONS = [30, 60, 90, UNLIMITED] as const
 export const MAX_TEAM_NAME = 14
 
 export interface RoundSettings {
@@ -38,6 +40,7 @@ export interface RoundState {
 
 export type Result<T> = { ok: true; state: T } | { ok: false; reason: string }
 
+export const isUnlimited = (settings: RoundSettings) => settings.turnSeconds === UNLIMITED
 export const teamOf = (s: RoundState, teamCount: number) => s.turn % teamCount
 export const totalTurns = (settings: RoundSettings) => settings.teams.length * settings.turnsPerTeam
 /** Monotonic token for the card on screen; actions must present the token they rendered. */
@@ -62,7 +65,7 @@ export function startTurn(state: RoundState, settings: RoundSettings, now: numbe
   if (state.phase !== 'ready') return { ok: false, reason: 'not-ready' }
   const d = draw(state.deck, state.poolSize, random, null)
   if (d.index === null) return { ok: false, reason: 'empty-pool' }
-  return { ok: true, state: { ...state, phase: 'playing', deck: d.deck, card: d.index, timer: startTimer(settings.turnSeconds * 1000, now) } }
+  return { ok: true, state: { ...state, phase: 'playing', deck: d.deck, card: d.index, timer: isUnlimited(settings) ? idleTimer(0) : startTimer(settings.turnSeconds * 1000, now) } }
 }
 
 function answer(state: RoundState, token: number, now: number, random: Random, scored: boolean, teamCount: number): Result<RoundState> {
@@ -93,6 +96,10 @@ export const markPass = (s: RoundState, settings: RoundSettings, token: number, 
 /** Ends the turn when the deadline has passed (also after the page slept). Returns the same state otherwise. */
 export function reconcile(state: RoundState, now: number): RoundState {
   if (state.phase !== 'playing' || !isExpired(state.timer, now)) return state
+  return toSummary(state)
+}
+
+function toSummary(state: RoundState): RoundState {
   return {
     ...state,
     phase: 'summary',
@@ -100,6 +107,12 @@ export function reconcile(state: RoundState, now: number): RoundState {
     skipped: state.card === null ? state.skipped : [...state.skipped, state.card],
     card: null,
   }
+}
+
+/** The players end the turn themselves (used when there is no time limit). The card on screen is unfinished. */
+export function finishTurn(state: RoundState): Result<RoundState> {
+  if (state.phase !== 'playing') return { ok: false, reason: 'not-playing' }
+  return { ok: true, state: toSummary(state) }
 }
 
 export function pauseTurn(state: RoundState, now: number): Result<RoundState> {
@@ -199,7 +212,8 @@ export function parseRoundState(raw: unknown, settings: RoundSettings, poolSize:
 
   const live = phase === 'playing' || phase === 'paused'
   if (live !== (card !== null)) return null
-  if (phase === 'playing' && timer.endsAt === null) return null
+  // A timed turn needs a deadline; an unlimited one must not have one.
+  if (phase === 'playing' && (timer.endsAt === null) !== (settings.turnSeconds === UNLIMITED)) return null
   if (phase !== 'playing' && timer.endsAt !== null) return null
   if (phase === 'ready' && (correct.length || passed.length || skipped.length)) return null
   if (phase === 'over' && turn !== totalTurns(settings) - 1) return null

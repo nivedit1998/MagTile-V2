@@ -3,7 +3,7 @@
 import { cardsLeft, draw, newDeck, parseDeck, shuffled, type Random } from './deck.ts'
 import {
   MIN_POOL, cardToken, markCorrect, markPass, newRounds, nextTurn, parseRoundSettings, parseRoundState, pauseTurn, ranking,
-  reconcile, resumeTurn, startTurn, validateTeamNames, type RoundSettings, type RoundState,
+  finishTurn, isUnlimited, reconcile, resumeTurn, startTurn, validateTeamNames, type RoundSettings, type RoundState,
 } from './rounds.ts'
 import { displaySeconds, idleTimer, isExpired, parseTimer, pause, remaining, resume, startTimer } from './timer.ts'
 
@@ -188,6 +188,25 @@ check('settings reject bad input', [
   check('rejects a ready phase with leftover cards', bad((o) => { o.phase = 'ready'; o.card = null; (o.timer as { endsAt: unknown }).endsAt = null }))
   check('rejects junk', parseRoundState(null, settings, POOL) === null && parseRoundState('x', settings, POOL) === null && parseRoundState([], settings, POOL) === null)
   check('rejects a pool below the minimum', parseRoundState(JSON.parse(JSON.stringify(mid)), settings, MIN_POOL - 1) === null)
+}
+
+// No time limit: the players keep their own time and end the turn with a button.
+{
+  const free: RoundSettings = { ...settings, turnSeconds: 0 }
+  check('0 seconds is accepted as no limit', parseRoundSettings(free, ['a']) !== null && isUnlimited(free) && !isUnlimited(settings))
+  let u = must(startTurn(newRounds(free, POOL, seeded(7)), free, T0, seeded(1)))
+  check('an unlimited turn starts with no deadline', u.phase === 'playing' && u.timer.endsAt === null && u.card !== null)
+  check('an unlimited turn never expires, even after days', reconcile(u, T0 + 7 * 86_400_000) === u)
+  u = must(markCorrect(u, free, cardToken(u), T0 + 999_999_999, seeded(2)))
+  check('scoring still works long after any normal deadline', u.scores[0] === 1 && u.correct.length === 1)
+  const p = must(pauseTurn(u, T0 + 1000))
+  check('pause and resume keep an unlimited turn deadline-free', p.phase === 'paused' && must(resumeTurn(p, T0 + 2000)).timer.endsAt === null)
+  check('an unlimited playing state survives save and load', parseRoundState(JSON.parse(JSON.stringify(u)), free, POOL) !== null)
+  check('a timed state is rejected under unlimited settings and the reverse', parseRoundState(JSON.parse(JSON.stringify(s)), free, POOL) === null && parseRoundState(JSON.parse(JSON.stringify(u)), settings, POOL) === null)
+  const ended = must(finishTurn(u))
+  check('End turn goes to the summary, keeps scores and marks the card unfinished', ended.phase === 'summary' && ended.card === null && ended.skipped.length === 1 && ended.scores[0] === 1 && ended.correct.length === 1)
+  check('End turn works on a timed turn too, but not outside a turn', finishTurn(s).ok && !finishTurn(ended).ok && !finishTurn(newRounds(free, POOL, seeded(1))).ok)
+  check('summary then moves on as usual', must(nextTurn(ended, free)).phase === 'ready')
 }
 
 console.log(`rounds.check: ${checks} checks passed`)
